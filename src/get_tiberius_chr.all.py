@@ -61,6 +61,26 @@ class GetChunks:
         else:
             self.m = label_matrix
 
+    def save_h5(self):
+        file_name = f"{self.spec}_{self.chrom}_{self.strand}.h5"
+        file_path = os.path.join(self.out_dir, file_name)
+
+        with h5py.File(file_path, "w") as hf:
+            hf.create_dataset('seq', 
+                            data=str(self.seq),  # 转换为固定长度字符串
+                            compression='gzip', 
+                            compression_opts=6)
+            hf.create_dataset('anno', 
+                            data=self.m,
+                            chunks=True,  # 启用分块存储
+                            compression='gzip',
+                            compression_opts=6,
+                            shuffle=True)  # 启用字节洗牌提高压缩率
+            # 存储元数据
+            hf.attrs['spec'] = self.spec
+            hf.attrs['chrom'] = self.chrom
+            hf.attrs['strand'] = self.strand
+
     def get_chr_all(self):
         file_name = f"{self.spec}_{self.chrom}_{self.strand}"
         with open(os.path.join(self.out_dir, file_name+".bin"), "wb") as seqf:
