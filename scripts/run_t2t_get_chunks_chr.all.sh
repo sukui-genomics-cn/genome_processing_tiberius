@@ -15,7 +15,7 @@ for spec_dir in "$data_dir"/*/; do
         chr=$(echo "$pkl_file" | cut -d '_' -f 1,2)
         fasta=${fasta_dir}/${spec}_${chr}"_forward.txt"
 
-        python ./get_tiberius_chunks.py \
+        python ./get_tiberius_chr.all.py \
             --fasta ${fasta} \
             --pkl ${pkl} \
             --out_dir ${spec_dir} 
