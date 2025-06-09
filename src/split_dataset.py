@@ -64,6 +64,7 @@ class T2TDataProcess:
                     logger.info(f"skip file: {sub_file_dir}")
         else:
             file_dirs += glob.glob(os.path.join(dest_path, name), recursive=recursive)
+            logger.info(f"find files: {len(file_dirs)}")
         
         file_nums = len(file_dirs)
         for file_filter in tqdm.tqdm(filter_files, total=len(filter_files), desc="Filter files"):

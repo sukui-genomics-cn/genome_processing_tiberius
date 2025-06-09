@@ -36,10 +36,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/split_dataset.py",
             "args": [
-                "-dp", "/home/nvme01/data/refseq_fish_30/Anabas_testudineus/chunks_50004_0/",
+                "-dp", "/home/nvme01/data/refseq_fish_30/Danio_rerio/chunks_50004_0/",
                 "-fa", "*.pkl",
-                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/Anguilla.anguilla_50k",
-                "-ffp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k/filter.txt"
+                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/Danio.rerio_50k",
             ],
             "console": "integratedTerminal",
             "justMyCode": true,
