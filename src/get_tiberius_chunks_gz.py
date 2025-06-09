@@ -6,16 +6,16 @@ import numpy as np
 import pandas as pd
 import argparse
 import os
+import gzip
 from glob import glob
 from pathlib import Path
 from tqdm import tqdm
 from multiprocessing import Pool
 from Bio.Seq import Seq
 import pickle
-import gzip
 from scipy.sparse import csr_matrix, csc_matrix, coo_matrix
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class GetChunks:
@@ -48,29 +48,35 @@ class GetChunks:
 
 
     def read_fasta(self):
-        if self.fasta.endswith(".txt"):
-            with open(self.fasta, "r") as file:
-                seq = file.read()
-        elif self.fasta.endswith(".gz"):
-            with gzip.open(self.fasta, 'rb') as file:
-                seq = file.read()
+        if self.fasta.endswith(".gz"):
+            file = gzip.open(self.fasta, "rt")
+        elif self.fasta.endswith(".txt"):
+            file = open(self.fasta, "r")
         else:
-            logger.info(f"not support fomrat: {self.fasta}")
+            logger.error(f"Unsupported file format: {self.fasta}")
+
+        seq = file.read()
         if self.strand == "backward":
             self.seq = Seq(seq).reverse_complement()
         else:
             self.seq = Seq(seq)
+        file.close()
 
     def read_pkl(self):
+
         if self.pkl.endswith(".gz"):
-            pass
-        with open(self.pkl, "rb") as f:
-            label_matrix = pickle.load(f)
-            label_matrix = label_matrix.toarray()
+            file = gzip.open(self.pkl, "rb")
+        elif self.pkl.endswith(".pkl"):
+            file = open(self.pkl, "rb")
+        else:
+            logger.error(f"Unsupported file format: {self.pkl}")
+        label_matrix = pickle.load(file)
+        label_matrix = label_matrix.toarray()
         if self.strand  == "backward":
             self.m = label_matrix[::-1]
         else:
             self.m = label_matrix
+        file.close()
 
     def get_chunks(self):
         num_chunks = (len(self.seq) - self.overlap) // (self.chunksize - self.overlap) + 1
