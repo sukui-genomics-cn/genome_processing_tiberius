@@ -13,13 +13,32 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "SplitDataset",
+            "name": "SplitDatasetMulti",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/src/split_dataset.py",
             "args": [
-                "-dp", "/home/nvme01/data/refseq_fish_30",
-                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k",
+                "-dp", "/home/nvme01/data/refseq_fish_30/",
+                "-fa", "*.pkl",
+                "-rc", "true",
+                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/Anguilla.anguilla_50k",
+                "-ffp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k/filter.txt"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "SplitDatasetSingle",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/split_dataset.py",
+            "args": [
+                "-dp", "/home/nvme01/data/refseq_fish_30/Anabas_testudineus/chunks_50004_0/",
+                "-fa", "*.pkl",
+                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/Anguilla.anguilla_50k",
                 "-ffp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k/filter.txt"
             ],
             "console": "integratedTerminal",

@@ -20,7 +20,7 @@ def parse_args():
     parse.add_argument("-vr", '--val_ratio', required=False, default=0.01, type=float, help='val data ratio')
     parse.add_argument("-ttr", '--test_ratio', required=False, default=0.04, type=float, help='test data ratio')
     parse.add_argument("-fa", '--file_name', required=False, default="*.pkl", type=str, help='file name')
-    parse.add_argument("-rc", '--recursive', required=False, default=True, type=bool, help='recursive')
+    parse.add_argument("-rc", '--recursive', required=False, default=False, type=bool, help='recursive')
     parse.add_argument("-ffp", '--filter_file_path', required=False, default=None, type=str,
                        help='file of filter file name')
     args = parse.parse_args()
@@ -54,19 +54,23 @@ class T2TDataProcess:
 
         assert os.path.exists(dest_path), f"{dest_path} is not exits"
         file_dirs = []
-        for sub_file_name in os.listdir(dest_path):
-            sub_file_dir = os.path.join(dest_path, sub_file_name)
-            if os.path.isdir(sub_file_dir) and sub_file_dir not in filter_files:
-                file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, "**", name), recursive=recursive)
-            else:
-                logger.info(f"skip file: {sub_file_dir}")
+
+        if recursive:
+            for sub_file_name in os.listdir(dest_path):
+                sub_file_dir = os.path.join(dest_path, sub_file_name)
+                if os.path.isdir(sub_file_dir) and sub_file_dir not in filter_files:
+                    file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, "**", name), recursive=recursive)
+                else:
+                    logger.info(f"skip file: {sub_file_dir}")
+        else:
+            file_dirs += glob.glob(os.path.join(dest_path, name), recursive=recursive)
         
         file_nums = len(file_dirs)
         for file_filter in tqdm.tqdm(filter_files, total=len(filter_files), desc="Filter files"):
             if file_filter in file_dirs:
                 file_dirs.remove(file_filter)
 
-        print(f"Filter files num: {file_nums - len(file_dirs)}")
+        print(f"sum file: {len(file_dirs)}; Filter files num: {file_nums - len(file_dirs)}")
 
         random.shuffle(file_dirs)
         train_data = file_dirs[:int(len(file_dirs) * train_ratio)]
