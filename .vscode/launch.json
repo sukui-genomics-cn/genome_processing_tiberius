@@ -1,0 +1,32 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "SplitDataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/split_dataset.py",
+            "args": [
+                "-dp", "/home/nvme01/data/refseq_fish_30",
+                "-sp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k",
+                "-ffp", "/home/nvme01/sukui/01.data/GeneStructure/refseq_fish.30_50k/filter.txt"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        }
+    ]
+}

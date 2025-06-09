@@ -7,8 +7,9 @@ import numpy as np
 
 import tqdm
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+
 
 
 def parse_args():
@@ -43,20 +44,29 @@ class T2TDataProcess:
             recursive: bool = True,
             filter_file_path: str = None
     ):
-        assert os.path.exists(dest_path), f"{dest_path} is not exits"
-        file_dirs = glob.glob(os.path.join(dest_path, "**", name), recursive=recursive)
         if filter_file_path is not None and os.path.exists(filter_file_path):
             with open(filter_file_path, "r", encoding="utf8") as f:
                 filter_files = f.readlines()
             filter_path_root = os.path.dirname(filter_file_path)
             filter_files = [os.path.join(filter_path_root, file.strip()) for file in filter_files]
+        else:
+            filter_files = []
 
-            file_nums = len(file_dirs)
-            for file_filter in tqdm.tqdm(filter_files, total=len(filter_files), desc="Filter files"):
-                if file_filter in file_dirs:
-                    file_dirs.remove(file_filter)
+        assert os.path.exists(dest_path), f"{dest_path} is not exits"
+        file_dirs = []
+        for sub_file_name in os.listdir(dest_path):
+            sub_file_dir = os.path.join(dest_path, sub_file_name)
+            if os.path.isdir(sub_file_dir) and sub_file_dir not in filter_files:
+                file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, "**", name), recursive=recursive)
+            else:
+                logger.info(f"skip file: {sub_file_dir}")
+        
+        file_nums = len(file_dirs)
+        for file_filter in tqdm.tqdm(filter_files, total=len(filter_files), desc="Filter files"):
+            if file_filter in file_dirs:
+                file_dirs.remove(file_filter)
 
-            print(f"Filter files num: {file_nums - len(file_dirs)}")
+        print(f"Filter files num: {file_nums - len(file_dirs)}")
 
         random.shuffle(file_dirs)
         train_data = file_dirs[:int(len(file_dirs) * train_ratio)]
