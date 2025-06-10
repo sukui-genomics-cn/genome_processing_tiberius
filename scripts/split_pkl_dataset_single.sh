@@ -4,8 +4,8 @@ project_root=/home/nvme01/sukui/03.project/genome_processing_tiberius
 cd $project_root
 python src/split_dataset.py \
     -dp $data_root \
-    -sp /home/nvme01/sukui/01.data/GeneStructure/Danio.rerio_50k/chunks_50004_0/ \
+    -sp /home/nvme01/sukui/01.data/GeneStructure/Danio.rerio_50k/ \
     -tr 0.95\
     -vr 0.01 \
-    -ttr 0.01 \
+    -ttr 0.04 \
     -fa "*.pkl" \

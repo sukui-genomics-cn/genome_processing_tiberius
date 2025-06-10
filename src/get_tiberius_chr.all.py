@@ -13,6 +13,8 @@ from Bio.Seq import Seq
 import pickle
 from scipy.sparse import csr_matrix, csc_matrix, coo_matrix
 
+import h5py
+
 
 
 class GetChunks:
@@ -61,21 +63,32 @@ class GetChunks:
         else:
             self.m = label_matrix
 
-    def save_h5(self):
-        file_name = f"{self.spec}_{self.chrom}_{self.strand}.h5"
-        file_path = os.path.join(self.out_dir, file_name)
+        self.m = self.m.astype(np.bool_)
 
-        with h5py.File(file_path, "w") as hf:
-            hf.create_dataset('seq', 
-                            data=str(self.seq),  # 转换为固定长度字符串
-                            compression='gzip', 
-                            compression_opts=6)
+    def save_h5(self):
+        file_name = f"{self.spec}_{self.chrom}_{self.strand}"
+        h5_path = self.out_dir
+        file_path = os.path.join(h5_path, file_name)
+
+        with open(os.path.join(h5_path, file_name+".bin"), "wb") as seqf:
+            seqf.write(str(self.seq).encode('ascii'))
+
+        
+        with h5py.File(os.path.join(h5_path, file_name+".h5"), "w") as hf:
+            hf.create_dataset('seq',
+                              data=np.array(list(self.seq), dtype='S1'),
+                              chunks=True,  # 启用分块存储
+                                compression='gzip',
+                                compression_opts=6,
+                                shuffle=True
+                              )
             hf.create_dataset('anno', 
                             data=self.m,
                             chunks=True,  # 启用分块存储
                             compression='gzip',
                             compression_opts=6,
                             shuffle=True)  # 启用字节洗牌提高压缩率
+            
             # 存储元数据
             hf.attrs['spec'] = self.spec
             hf.attrs['chrom'] = self.chrom
@@ -87,6 +100,9 @@ class GetChunks:
             seqf.write(str(self.seq).encode('ascii'))
 
         np.save(os.path.join(self.out_dir, file_name+".npy"), self.m)
+        
+        with open(os.path.join(self.out_dir, file_name+".pkl"), 'wb') as f:
+            pickle.dump(self.m, f)
 
 #         num_chunks = (len(self.seq) - self.overlap) // (self.chunksize - self.overlap) + 1
 #         for i in tqdm(range(num_chunks-1), desc = "Cut chr"):
@@ -135,6 +151,7 @@ if __name__ == '__main__':
 #        p = Pool(cpus)
         chunks = GetChunks(args.fasta, args.pkl, args.out_dir)
         chunks.get_chr_all()
+        chunks.save_h5()
 #        p.close()
 #        p.join()
 

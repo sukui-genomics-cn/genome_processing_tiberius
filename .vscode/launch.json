@@ -45,6 +45,38 @@
             "env": {
                 "PYTHONPATH": "${workspaceFolder}"
             }
+        },
+        {
+            "name": "Tiberus_chr.all",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/get_tiberius_chr.all.py",
+            "args": [
+                "-f", "/home/nvme01/data/T2T/fasta/T2T_NC_060925.1_forward.txt",
+                "-pkl", "/home/nvme01/data/T2T/anno_tiberius/NC_060925.1_backward.pkl",
+                "-o", "/home/nvme01/data/T2T/chunk_chr.h5",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
+        },
+        {
+            "name": "dnaseq_split_chunk",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/dnaseq_split_chunk.py",
+            "args": [
+                "--input_dir=/home/nvme01/data/T2T/chunk_chr.h5",
+                "--output_dir=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004",
+                "--chunk_size=50004"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            }
         }
     ]
 }
