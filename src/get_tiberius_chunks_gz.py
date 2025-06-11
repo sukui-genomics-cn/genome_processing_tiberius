@@ -27,7 +27,9 @@ class GetChunks:
         self.out_dir = os.path.join(out_dir, "chunks_" + str(self.chunksize) + "_" + str(self.overlap))
 
         self.spec = self.pkl.split("/")[-3]
+        logger.info(f"Species: {self.spec}")
         basename = os.path.basename(self.pkl).split(".pkl")[-2].split("_")
+        logger.info(f"Basename: {basename}")
         self.chrom = "_".join(basename[0:2])
         self.strand = basename[-1]
 
@@ -48,7 +50,7 @@ class GetChunks:
 
 
     def read_fasta(self):
-        if self.fasta.endswith(".gz"):
+        if self.fasta.endswith(".txt.gz"):
             file = gzip.open(self.fasta, "rt")
         elif self.fasta.endswith(".txt"):
             file = open(self.fasta, "r")

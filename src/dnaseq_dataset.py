@@ -34,6 +34,7 @@ class DNAH5Dataset(Dataset):
         
         if shuffle:
             random.shuffle(self.chunks)
+            self.chunks = sorted(self.chunks, key=lambda x: (x[0]))  # sort by chr name
         
         # 注册清理函数
         atexit.register(self.cleanup)

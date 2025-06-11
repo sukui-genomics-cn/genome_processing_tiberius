@@ -1,10 +1,12 @@
 import sys
 import shutil
+import logging
 
 import numpy as np
 import pandas as pd
 import argparse
 import os
+import gzip
 from glob import glob
 from pathlib import Path
 from tqdm import tqdm
@@ -15,6 +17,8 @@ from scipy.sparse import csr_matrix, csc_matrix, coo_matrix
 
 import h5py
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 class GetChunks:
@@ -23,7 +27,7 @@ class GetChunks:
         self.pkl = pkl_file
         # self.chunksize = chunksize
         # self.overlap = overlap
-        self.out_dir = os.path.join(out_dir, "chunk_chr.all_H5")
+        self.out_dir = os.path.join(out_dir, "chunk_chr.all_h5")
 
         self.spec = self.pkl.split("/")[-3]
         basename = os.path.basename(self.pkl).split(".pkl")[-2].split("_")
@@ -47,27 +51,47 @@ class GetChunks:
 
 
     def read_fasta(self):
-        with open(self.fasta, "r") as file:
-            seq = file.read()
+        if self.fasta.endswith(".txt.gz"):
+            file = gzip.open(self.fasta, "rt")
+        elif self.fasta.endswith(".txt"):
+            file = open(self.fasta, "r")
+        else:
+            logger.error(f"Unsupported file format: {self.fasta}")
+
+        seq = file.read()
         if self.strand == "backward":
             self.seq = Seq(seq).reverse_complement()
         else:
             self.seq = Seq(seq)
+        file.close()
 
     def read_pkl(self):
-        with open(self.pkl, "rb") as f:
-            label_matrix = pickle.load(f)
-            label_matrix = label_matrix.toarray()
+
+        if self.pkl.endswith(".gz"):
+            file = gzip.open(self.pkl, "rb")
+        elif self.pkl.endswith(".pkl"):
+            file = open(self.pkl, "rb")
+        else:
+            logger.error(f"Unsupported file format: {self.pkl}")
+        label_matrix = pickle.load(file)
+        label_matrix = label_matrix.toarray()
         if self.strand  == "backward":
             self.m = label_matrix[::-1]
         else:
             self.m = label_matrix
+        file.close()
 
         self.m = self.m.astype(np.bool_)
 
     def save_h5(self):
         file_name = f"{self.spec}_{self.chrom}_{self.strand}"
         h5_path = self.out_dir
+
+        if len(self.seq) < 100000:
+            logger.info(f"seq len: {len(self.seq)} of {self.fasta} is too short, skip saving to h5.")
+
+        if len(self.seq) != self.m.shape[0]:
+            raise ValueError(f"Sequence length {len(self.seq)} does not match annotation matrix shape {self.m.shape[0]}.")
 
         with open(os.path.join(h5_path, file_name+".bin"), "wb") as seqf:
             seqf.write(str(self.seq).encode('ascii'))
@@ -92,43 +116,7 @@ class GetChunks:
             hf.attrs['spec'] = self.spec
             hf.attrs['chrom'] = self.chrom
             hf.attrs['strand'] = self.strand
-
-    def get_chr_all(self):
-        file_name = f"{self.spec}_{self.chrom}_{self.strand}"
-        with open(os.path.join(self.out_dir, file_name+".bin"), "wb") as seqf:
-            seqf.write(str(self.seq).encode('ascii'))
-
-        np.save(os.path.join(self.out_dir, file_name+".npy"), self.m)
-        
-        with open(os.path.join(self.out_dir, file_name+".pkl"), 'wb') as f:
-            pickle.dump(self.m, f)
-
-#         num_chunks = (len(self.seq) - self.overlap) // (self.chunksize - self.overlap) + 1
-#         for i in tqdm(range(num_chunks-1), desc = "Cut chr"):
-#             chunk = {}
-#             begin = i * (self.chunksize - self.overlap)
-#             end = i * (self.chunksize - self.overlap) + self.chunksize
-#             chunk_seq = self.seq[begin:end]    
-#             chunk_m = coo_matrix(self.m[begin:end,:])
-# #            sparse_matrix = coo_matrix(current_annotation['annotation'])
-#             chunk = {'Species': self.spec, 'chrom': self.chrom, 'seq': str(chunk_seq), \
-#                               'begin': begin, 'end': end, 'strand': self.strand, 'annotation': chunk_m}
-#             with open(os.path.join(f'{self.out_dir}',\
-#                  f"{self.spec}_{self.chrom}_{begin}-{end}_{self.strand}.pkl"), 'wb') as file:
-#                 pickle.dump(chunk, file)
-
-        print(f"{self.strand} of {self.fasta} has been cutted!")
-
-"""        last_chunk = {}
-        last_chunksize = (len(self.seq) - self.overlap)%(self.chunksize - self.overlap)
-        last_seq = self.seq[-last_chunksize:]
-        last_m = coo_matrix(self.m[-last_chunksize:])
-        last_chunk = {'Species': self.spec, 'chrom': self.chrom, 'seq': str(last_seq), \
-                'last_chunksize': last_chunksize, 'strand': self.strand, 'annotation': last_m}
-        with open(os.path.join(f'{self.out_dir}',\
-            f"{self.spec}_{self.chrom}_lastchunk_{last_chunksize}_{self.strand}.pkl"), 'wb') as file:
-            pickle.dump(last_chunk, file)
-"""
+        logger.info(f"{self.strand} of {self.fasta} has been cutted!")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -149,7 +137,6 @@ if __name__ == '__main__':
 #        cpus = 10
 #        p = Pool(cpus)
         chunks = GetChunks(args.fasta, args.pkl, args.out_dir)
-        chunks.get_chr_all()
         chunks.save_h5()
 #        p.close()
 #        p.join()
