@@ -10,8 +10,7 @@ from collections import OrderedDict
 import logging
 import h5py
 
-logging.basicConfig(level=logging.INFO, 
-                    format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class DNAH5Dataset(Dataset):
@@ -23,7 +22,6 @@ class DNAH5Dataset(Dataset):
         """
         self.chunks = []
         self.file_handles = {}  # 文件路径到文件描述符的映射
-        self.mmaps = {}        # 文件路径到mmap的映射
         self.lock = torch.multiprocessing.Lock()  # 用于多进程同步
         self.max_maps = max_maps
         self.mode = mode
@@ -63,7 +61,6 @@ class DNAH5Dataset(Dataset):
                 self.file_cache.move_to_end(file_path) # mv to end to keep order
 
             if len(self.file_cache) > self.max_maps:
-                # self.max_maps = len(self.mmaps)
                 print(f"max maps reached, will remove oldest mmap: {self.max_maps}")
 
             # check mmap size
@@ -157,3 +154,12 @@ def get_dna_dataloader(index_file, batch_size=32, num_workers=4, shuffle=True, d
     )
     
     return dataloader
+
+if __name__ == "__main__":
+    # Example usage
+    index_file = "/home/nvme01/sukui/01.data/T2T/t2t_chr_50004/chunk_index.txt"
+    dataloader = get_dna_dataloader(index_file, batch_size=32, num_workers=0, shuffle=True)
+    
+    for batch in dataloader:
+        print(batch["input_seq"].shape, batch["anno"].shape if batch["anno"] is not None else "No annotations")
+        break  # Just to test the first batch
