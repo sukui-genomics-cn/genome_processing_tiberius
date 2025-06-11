@@ -31,7 +31,7 @@ for spec_dir in "$data_dir"*/; do
             --fasta ${fasta} \
             --pkl ${pkl} \
             --chunk_size 50004 \
-            --overlap 0 \
+            --overlap 1 \
             --out_dir ${out_dir} 
     done
 done

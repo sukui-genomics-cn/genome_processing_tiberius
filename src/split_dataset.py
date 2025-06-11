@@ -21,6 +21,7 @@ def parse_args():
     parse.add_argument("-ttr", '--test_ratio', required=False, default=0.04, type=float, help='test data ratio')
     parse.add_argument("-fa", '--file_name', required=False, default="*.pkl", type=str, help='file name')
     parse.add_argument("-rc", '--recursive', required=False, default=False, type=bool, help='recursive')
+    parse.add_argument("-sd", '--sub_dir', required=False, default="**", type=str, help='recursive')
     parse.add_argument("-ffp", '--filter_file_path', required=False, default=None, type=str,
                        help='file of filter file name')
     args = parse.parse_args()
@@ -42,6 +43,7 @@ class T2TDataProcess:
             test_ratio: float = 0.05,
             name: str = "*.pkl",
             recursive: bool = True,
+            sub_dir: str = "**",
             filter_file_path: str = None
     ):
         if filter_file_path is not None and os.path.exists(filter_file_path):
@@ -59,7 +61,7 @@ class T2TDataProcess:
             for sub_file_name in os.listdir(dest_path):
                 sub_file_dir = os.path.join(dest_path, sub_file_name)
                 if os.path.isdir(sub_file_dir) and sub_file_dir not in filter_files:
-                    file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, "**", name), recursive=recursive)
+                    file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, sub_dir, name), recursive=recursive)
                 else:
                     logger.info(f"skip file: {sub_file_dir}")
         else:
@@ -111,6 +113,7 @@ def main(args):
         val_ratio=args.val_ratio,
         test_ratio=args.test_ratio,
         name=args.file_name,
+        sub_dir=args.sub_dir,
         recursive=args.recursive,
         filter_file_path=args.filter_file_path
     )
