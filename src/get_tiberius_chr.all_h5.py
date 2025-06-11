@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 class GetChunks:
-    def __init__(self, fasta_file='', pkl_file='', out_dir = "./"):
+    def __init__(self, fasta_file='', pkl_file='', out_dir = "./", min_seq_len:int=1000000):
         self.fasta = fasta_file
         self.pkl = pkl_file
+        self.min_seq_len = min_seq_len  # Minimum sequence length to save
         # self.chunksize = chunksize
         # self.overlap = overlap
         self.out_dir = os.path.join(out_dir, "chunk_chr.all_h5")
@@ -87,7 +88,7 @@ class GetChunks:
         file_name = f"{self.spec}_{self.chrom}_{self.strand}"
         h5_path = self.out_dir
 
-        if len(self.seq) < 100000:
+        if len(self.seq) < self.min_seq_len:
             logger.info(f"seq len: {len(self.seq)} of {self.fasta} is too short, skip saving to h5.")
 
         if len(self.seq) != self.m.shape[0]:

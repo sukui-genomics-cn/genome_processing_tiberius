@@ -19,12 +19,13 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class GetChunks:
-    def __init__(self, fasta_file='', pkl_file='', chunksize=199998, overlap=0, out_dir = "./"):
+    def __init__(self, fasta_file='', pkl_file='', chunksize=199998, overlap=0, out_dir = "./", min_seq_len:int=1000000):
         self.fasta = fasta_file
         self.pkl = pkl_file
         self.chunksize = chunksize
         self.overlap = overlap
         self.out_dir = os.path.join(out_dir, "chunks_" + str(self.chunksize) + "_" + str(self.overlap))
+        self.min_seq_len = min_seq_len
 
         self.spec = self.pkl.split("/")[-3]
         logger.info(f"Species: {self.spec}")
@@ -81,6 +82,10 @@ class GetChunks:
         file.close()
 
     def get_chunks(self):
+
+        if len(self.seq) < self.min_seq_len:
+            logger.info(f"seq len: {len(self.seq)} of {self.fasta} is too short, skip saving to h5.")
+
         num_chunks = (len(self.seq) - self.overlap) // (self.chunksize - self.overlap) + 1
         for i in tqdm(range(num_chunks-1), desc = "Cut chr"):
             chunk = {}
