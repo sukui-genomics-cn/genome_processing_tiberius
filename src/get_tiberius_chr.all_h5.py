@@ -124,9 +124,11 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--fasta', help='fasta file')
     parser.add_argument('-pkl', '--pkl', help='pickle file of one-hot matrix of tiberius labels')
     parser.add_argument('-o', '--out_dir', help='out path', default=r"D:\data\human\groups")
+    parser.add_argument('-min', '--min_seq_len', type=int, default=1000000,
+                        help='Minimum sequence length to save. Default is 1000000.')
     
     args = parser.parse_args()
-#    print(args)
+    print(args)
 
 #    out_path = os.path.join(args.out_dir, "chunks_" + str(args.chunk_size) + "_" + str(args.overlap))
     
@@ -137,8 +139,9 @@ if __name__ == '__main__':
     else:
 #        cpus = 10
 #        p = Pool(cpus)
-        chunks = GetChunks(args.fasta, args.pkl, args.out_dir)
-        chunks.save_h5()
+        # chunks = GetChunks(args.fasta, args.pkl, args.out_dir, args.min_seq_len)
+        # chunks.save_h5()
+        pass
 #        p.close()
 #        p.join()
 

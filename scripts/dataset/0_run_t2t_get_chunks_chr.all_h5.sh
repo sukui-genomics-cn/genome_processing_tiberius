@@ -16,6 +16,7 @@ for spec_dir in "$data_dir"/T2T/; do
     echo "Annotation directory: $anno_dir"
     echo "Fasta directory: $fasta_dir"
     echo "Output directory: $out_dir"
+    echo "spec_dir: $spec_dir"
 
     if [ ! -d "$out_dir" ]; then
         mkdir -p "$out_dir"
@@ -32,7 +33,7 @@ for spec_dir in "$data_dir"/T2T/; do
         python ./src/get_tiberius_chr.all_h5.py \
             --fasta ${fasta} \
             --pkl ${pkl} \
-            --out_dir ${spec_dir} 
+            --out_dir ${out_dir} 
     done
 done
 

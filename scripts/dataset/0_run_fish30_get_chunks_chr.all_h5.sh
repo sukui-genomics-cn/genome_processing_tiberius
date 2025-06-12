@@ -32,7 +32,7 @@ for spec_dir in "$data_dir"/*/; do
         python ./src/get_tiberius_chr.all_h5.py \
             --fasta ${fasta} \
             --pkl ${pkl} \
-            --out_dir ${spec_dir} 
+            --out_dir ${out_dir} 
     done
 done
 
