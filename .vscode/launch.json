@@ -68,9 +68,13 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/dnaseq_split_chunk.py",
             "args": [
-                "--input_dir=/home/nvme01/data/T2T/chunk_chr.h5",
-                "--output_dir=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004",
-                "--chunk_size=50004"
+                "--input_dir=/home/nvme01/data/",
+                "--sub_dir=chunk_chr.all_h5",
+                "--recursive",
+                "--output_dir=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004_h5",
+                "--chunk_size=50004",
+                "--dataset_name=t2t_chunk_50004_h5",
+                "--shuffle",
             ],
             "console": "integratedTerminal",
             "justMyCode": true,

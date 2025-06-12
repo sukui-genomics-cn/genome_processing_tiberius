@@ -9,6 +9,7 @@ import logging
 import h5py
 from tqdm import tqdm
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 class SequencePreprocessor:
@@ -18,7 +19,9 @@ class SequencePreprocessor:
     EXCLUDE_KEYWORDS = ['scaffold', 'contig', 'random', 'Un']
     SUPPORTED_FASTA_EXTENSIONS = (".h5")
     
-    def __init__(self, input_dir:str, output_dir:str, chunk_size:int=500000, min_seq_len:int=1000000):
+    def __init__(self, input_dir:str, output_dir:str, sub_dir="**", recursive:bool=True, 
+                 filter_file_path:str=None, name:str="*.h5", chunk_size:int=500000, 
+                 min_seq_len:int=1000000, seed=42):
         """
         初始化预处理类
         
@@ -33,18 +36,52 @@ class SequencePreprocessor:
         self.min_seq_len = min_seq_len
         
         # 确保输入目录存在
-        self.h5_input_dir = os.path.join(input_dir, "chunk_chr.all")
-        self.chr_files = self.find_chr_files()
+
+        self.chr_files = self.find_chr_files(
+            dest_path=self.input_dir,  # 输入目录
+            sub_dir=sub_dir,
+            recursive=recursive,  # 是否递归查找子目录
+            filter_file_path=filter_file_path,  # 可以指定过滤文件路径
+            name=name  # 查找所有的h5文件
+        )
         # 输出文件路径
         self.chunks = []
         self.meatas = []
+
+        random.seed(seed)
         
     
-    def find_chr_files(self, format="*.h5"):
+    def find_chr_files(self, dest_path, sub_dir,recursive , filter_file_path, name):
         """查找所有染色体文件"""
-        chr_files = glob.glob(os.path.join(self.h5_input_dir, format))
-        logger.info(f"Found {len(chr_files)} chromosome files")
-        return chr_files
+        # chr_files = glob.glob(os.path.join(self.h5_input_dir, format), recursive=True)
+        # logger.info(f"Found {len(chr_files)} chromosome files")
+
+
+        if filter_file_path is not None and os.path.exists(filter_file_path):
+            with open(filter_file_path, "r", encoding="utf8") as f:
+                filter_files = f.readlines()
+            filter_path_root = os.path.dirname(filter_file_path)
+            filter_files = [os.path.join(filter_path_root, file.strip()) for file in filter_files]
+        else:
+            filter_files = []
+
+        assert os.path.exists(dest_path), f"{dest_path} is not exits"
+        file_dirs = []
+
+        if recursive:
+            for sub_file_name in os.listdir(dest_path):
+                sub_file_dir = os.path.join(dest_path, sub_file_name)
+                if os.path.isdir(sub_file_dir) and sub_file_dir not in filter_files:
+                    file_dirs += glob.glob(os.path.join(dest_path, sub_file_dir, sub_dir, name), recursive=recursive)
+                else:
+                    logger.info(f"skip file: {sub_file_dir}")
+        else:
+            if sub_dir is not None:
+                logger.info(f"sub_dir: {sub_dir}, not support when recursive is False")
+            file_dirs += glob.glob(os.path.join(dest_path, name), recursive=recursive)
+            logger.info(f"find files: {len(file_dirs)}")
+
+        return file_dirs
 
     @classmethod
     def is_chr(cls, record_id):
@@ -89,11 +126,10 @@ class SequencePreprocessor:
         return chunk_list, meta_list
 
     
-    def process(self, chr_shuffle=True, species_shuffle=True):
+    def process(self):
         """执行预处理流程"""
         os.makedirs(self.output_dir, exist_ok=True)
         
-            
         for chr_file in tqdm(self.chr_files, desc="Processing files", total=len(self.chr_files)):
             chunk_list, meta_list = self._process_h5_file(chr_file)
             if chunk_list:
@@ -101,6 +137,7 @@ class SequencePreprocessor:
             if meta_list:
                 self.meatas.append(meta_list)
         self.write_index(self.chunks, self.meatas, self.output_dir, name_postfix="all")
+        
     
     def write_index(self, chunks:list,meatas:list, output_dir:str, name_postfix:str="all"):
         """将处理后的数据写入索引文件和元数据文件"""
@@ -134,28 +171,29 @@ class SequencePreprocessor:
         chunks_val, metas_val = [], []
         chunks_test, metas_test = [], []
         for i, (indexs) in enumerate(indexs):
-            
-            if random.random() < train_ratio:
+              # set random seed for reproducibility
+            rate = random.random()
+            if rate < train_ratio:
                 chunk = chunks[indexs]
                 meta = self.meatas[indexs]
                 if shuffle:
                     random.shuffle(chunk)
                 chunks_train.append(chunk)
                 metas_train.append(meta)
-            elif random.random() > (train_ratio + val_ratio):
-                chunk = chunks[indexs]
-                meta = self.meatas[indexs]
-                if shuffle:
-                    random.shuffle(chunk)
-                chunks_val.append(chunk)
-                metas_val.append(meta)
-            else:
+            elif rate > train_ratio + val_ratio:
                 chunk = chunks[indexs]
                 meta = self.meatas[indexs]
                 if shuffle:
                     random.shuffle(chunk)
                 chunks_test.append(chunk)
                 metas_test.append(meta)
+            else:
+                chunk = chunks[indexs]
+                meta = self.meatas[indexs]
+                if shuffle:
+                    random.shuffle(chunk)
+                chunks_val.append(chunk)
+                metas_val.append(meta)
 
         # write train, val, test index files
         self.write_index(chunks_train, metas_train, output_dir, name_postfix="train")
@@ -164,23 +202,45 @@ class SequencePreprocessor:
         logger.info(f"Train, val, test index files created at: {output_dir}")
         logger.info(f"Train: {len(chunks_train)}, Val: {len(chunks_val)}, Test: {len(chunks_test)}")                               
             
-            
-
-                
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_dir", type=str, required=True)
+    parser.add_argument("--sub_dir", type=str, default="**", help="Subdirectory to search for files")
+    parser.add_argument("--recursive", action='store_true', help="Whether to search recursively in subdirectories")
+    parser.add_argument("--filter_file_path", type=str, default=None, help="Path to a file containing paths to filter out")
+    parser.add_argument("--name", type=str, default="*.h5", help="File name pattern to match")
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--chunk_size", type=int, default=50000)
+    parser.add_argument("--min_seq_len", type=int, default=1000000, help="Minimum sequence length to process")
+    parser.add_argument("--train_ratio", type=float, default=0.8, help="Ratio of training set")
+    parser.add_argument("--val_ratio", type=float, default=0.1, help="Ratio of validation set")
+    parser.add_argument("--test_ratio", type=float, default=0.1, help="Ratio of test set")
+    parser.add_argument("--shuffle", action='store_true', help="Shuffle the dataset before splitting")
+    parser.add_argument("--dataset_name", type=str, default="dnaseq_split", help="Name of the dataset for splitting")
+
     args = parser.parse_args()
+    logger.setLevel(logging.INFO)
+    logger.info(f"args: {args}")
+    # 创建输出目录
 
     preprocessor = SequencePreprocessor(
-        input_dir=args.input_dir, 
+        input_dir=args.input_dir,
+        sub_dir=args.sub_dir,
+        recursive=args.recursive,
+        filter_file_path=args.filter_file_path,
+        name=args.name,
         output_dir=args.output_dir,
         chunk_size=args.chunk_size
         )
     preprocessor.process()
+    preprocessor.split_train_val_test(
+        dataset_name=args.dataset_name, 
+        train_ratio=args.train_ratio, 
+        val_ratio=args.val_ratio, 
+        test_ratio=args.test_ratio, 
+        shuffle=args.shuffle
+        )
 
 
 if __name__ == "__main__":
