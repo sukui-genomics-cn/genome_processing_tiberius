@@ -94,8 +94,8 @@ class GetChunks:
         if len(self.seq) != self.m.shape[0]:
             raise ValueError(f"Sequence length {len(self.seq)} does not match annotation matrix shape {self.m.shape[0]}.")
 
-        with open(os.path.join(h5_path, file_name+".bin"), "wb") as seqf:
-            seqf.write(str(self.seq).encode('ascii'))
+        # with open(os.path.join(h5_path, file_name+".bin"), "wb") as seqf:
+        #     seqf.write(str(self.seq).encode('ascii'))
 
         
         with h5py.File(os.path.join(h5_path, file_name+".h5"), "w") as hf:

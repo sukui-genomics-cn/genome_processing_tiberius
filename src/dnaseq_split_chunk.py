@@ -17,7 +17,7 @@ class SequencePreprocessor:
     EXCLUDE_KEYWORDS = ['scaffold', 'contig', 'random', 'Un']
     SUPPORTED_FASTA_EXTENSIONS = (".h5")
     
-    def __init__(self, input_dir, output_dir, chunk_size=500000):
+    def __init__(self, input_dir:str, output_dir:str, chunk_size:int=500000, min_seq_len:int=1000000):
         """
         初始化预处理类
         
@@ -29,6 +29,7 @@ class SequencePreprocessor:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.chunk_size = chunk_size
+        self.min_seq_len = min_seq_len
         
         # 确保输入目录存在
         self.h5_input_dir = os.path.join(input_dir, "chunk_chr.all")
@@ -100,7 +101,7 @@ class SequencePreprocessor:
                 
                 chunks.append(chunk_list)
                 if meta_list:
-                    meatas.extend(meta_list)
+                    meatas.append(meta_list)
         if species_shuffle:
             random.shuffle(chunks)
 
