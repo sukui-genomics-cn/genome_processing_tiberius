@@ -1,3 +1,4 @@
+import argparse
 import os
 import mmap
 import random
@@ -14,33 +15,33 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 class DNAH5Dataset(Dataset):
-    def __init__(self, index_file, shuffle=True, max_maps:int=8, mode="r", seq_key="seq", anno_key="anno"):
+    def __init__(self, index_file, shuffle=False, max_maps: int = 8, mode="r", seq_key="seq", anno_key="anno"):
         """
         Args:
-            index_file: 预处理生成的chunk索引文件
-            shuffle: 是否打乱数据顺序
+            index_file: Preprocessed chunk index file
+            shuffle: Whether to shuffle the data order
         """
         self.chunks = []
-        self.file_handles = {}  # 文件路径到文件描述符的映射
-        self.lock = torch.multiprocessing.Lock()  # 用于多进程同步
+        self.file_handles = {}  # Mapping from file path to file descriptor
+        self.lock = torch.multiprocessing.Lock()  # Used for multi-process synchronization
         self.max_maps = max_maps
         self.mode = mode
         self.seq_key = seq_key
         self.anno_key = anno_key
         self.file_cache = OrderedDict() 
         
-        # 加载索引
+        # Load index
         self.chunks = self._load_chunk_file(index_file)
         
         if shuffle:
             random.shuffle(self.chunks)
-            self.chunks = sorted(self.chunks, key=lambda x: (x[0]))  # sort by chr name
+            self.chunks = sorted(self.chunks, key=lambda x: (x[0]))  # Sort by chromosome name
         
-        # 注册清理函数
+        # Register cleanup function
         atexit.register(self.cleanup)
     
     def _load_chunk_file(self, chunk_file):
-        """加载chunk.txt文件，返回结构化的chunk信息"""
+        """Load chunk.txt file and return structured chunk information"""
         chunks = []
         with open(chunk_file, 'r') as f:
             for line in f:
@@ -51,41 +52,41 @@ class DNAH5Dataset(Dataset):
         return chunks
 
     def _get_mmap(self, file_path, anno_path=None):
-        """获取或创建内存映射（线程安全）"""
+        """Get or create memory mapping (thread-safe)"""
         with self.lock:
             if file_path not in self.file_cache:
                 if not os.path.exists(file_path):
-                    raise FileNotFoundError(f"SEQ file is not found: {file_path}")
+                    raise FileNotFoundError(f"SEQ file not found: {file_path}")
                 
-                # open file by r and build mmap
+                # Open file in read mode and build mmap
                 self.file_cache[file_path] = h5py.File(file_path, self.mode, driver='core' if self.mode == 'r' else None)
-                self.file_cache.move_to_end(file_path) # mv to end to keep order
+                self.file_cache.move_to_end(file_path)  # Move to end to maintain order
 
             if len(self.file_cache) > self.max_maps:
-                print(f"max maps reached, will remove oldest mmap: {self.max_maps}")
+                print(f"Max maps reached, removing oldest mmap: {self.max_maps}")
 
-            # check mmap size
+            # Check mmap size
             if len(self.file_cache) > self.max_maps:
                 self._remove_oldest_mmap()
                 
             return self.file_cache[file_path]
         
     def _remove_oldest_mmap(self):
-        """close the oldest mmap and remove it from the dictionary"""
+        """Close the oldest mmap and remove it from the dictionary"""
         if not self.file_cache:
             return
 
         oldest_path, oldest_mmap = next(iter(self.file_cache.items()))
         if oldest_path in self.file_cache:
-            # 关闭映射和文件描述符
+            # Close mapping and file descriptor
             oldest_mmap.close()
             del self.file_cache[oldest_path]
 
-        print(f"已释放最旧的内存映射: {oldest_path}")
-        print(f"当前保留的内存映射: {self.file_cache.keys()}")
+        print(f"Released oldest memory mapping: {oldest_path}")
+        print(f"Current retained memory mappings: {self.file_cache.keys()}")
     
     def _encode_dna(self, sequence):
-        """将DNA序列转换为one-hot编码"""
+        """Convert DNA sequence to one-hot encoding"""
         mapping = {
             'A': [1, 0, 0, 0],
             'T': [0, 1, 0, 0],
@@ -119,7 +120,7 @@ class DNAH5Dataset(Dataset):
             raise
     
     def cleanup(self):
-        """清理资源"""
+        """Clean up resources"""
         with self.lock:
             for file_path, mm in self.file_cache.items():
                 try:
@@ -133,8 +134,8 @@ class DNAH5Dataset(Dataset):
         self.cleanup()
 
 def get_dna_dataloader(index_file, batch_size=32, num_workers=4, shuffle=True, distributed=False):
-    """获取DNA序列的DataLoader"""
-    # 设置共享内存的fork方式
+    """Get DataLoader for DNA sequences"""
+    # Set fork method for shared memory
     torch.multiprocessing.set_sharing_strategy('file_system')
     
     dataset = DNAH5Dataset(index_file, shuffle=shuffle)
@@ -151,16 +152,19 @@ def get_dna_dataloader(index_file, batch_size=32, num_workers=4, shuffle=True, d
         pin_memory=True,
         persistent_workers=num_workers > 0,
         drop_last=True,
-        # multiprocessing_context=torch.multiprocessing.get_context('spawn')  # 使用fork而非spawn
+        # multiprocessing_context=torch.multiprocessing.get_context('spawn')  # Use fork instead of spawn
     )
     
     return dataloader
 
 if __name__ == "__main__":
     # Example usage
-    index_file = "/home/nvme01/sukui/01.data/T2T/t2t_chr_50004/chunk_index.txt"
-    dataloader = get_dna_dataloader(index_file, batch_size=32, num_workers=0, shuffle=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_file', help='Path to the dataset file')
+    
+    args = parser.parse_args()
+    dataloader = get_dna_dataloader(args.dataset_file, batch_size=32, num_workers=0, shuffle=True)
     
     for batch in dataloader:
         print(batch["input_seq"].shape, batch["anno"].shape if batch["anno"] is not None else "No annotations")
-        break  # Just to test the first batch
+        break  # Test the first batch only

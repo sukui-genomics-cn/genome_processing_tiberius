@@ -88,9 +88,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/src/dnaseq_dataset.py",
             "args": [
-                "--input_dir=/home/nvme01/data/T2T/chunk_chr.h5",
-                "--output_dir=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004",
-                "--chunk_size=50004"
+                "--dataset_file=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004_h5/t2t_chunk_50004_h5/chunks_test.txt",
             ],
             "console": "integratedTerminal",
             "justMyCode": true,
