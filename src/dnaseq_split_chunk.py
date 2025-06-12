@@ -1,4 +1,5 @@
 import argparse
+import copy
 import glob
 import os
 import random
@@ -35,8 +36,9 @@ class SequencePreprocessor:
         self.h5_input_dir = os.path.join(input_dir, "chunk_chr.all")
         self.chr_files = self.find_chr_files()
         # 输出文件路径
-        self.index_file = os.path.join(output_dir, "chunk_index.txt")
-        self.meta_file = os.path.join(output_dir, "metadata.txt")
+        self.chunks = []
+        self.meatas = []
+        
     
     def find_chr_files(self, format="*.h5"):
         """查找所有染色体文件"""
@@ -90,32 +92,80 @@ class SequencePreprocessor:
     def process(self, chr_shuffle=True, species_shuffle=True):
         """执行预处理流程"""
         os.makedirs(self.output_dir, exist_ok=True)
-        chunks = []
-        meatas = []
+        
             
         for chr_file in tqdm(self.chr_files, desc="Processing files", total=len(self.chr_files)):
             chunk_list, meta_list = self._process_h5_file(chr_file)
             if chunk_list:
-                if chr_shuffle:
-                    random.shuffle(chunk_list)
-                
-                chunks.append(chunk_list)
-                if meta_list:
-                    meatas.append(meta_list)
-        if species_shuffle:
-            random.shuffle(chunks)
-
+                self.chunks.append(chunk_list)
+            if meta_list:
+                self.meatas.append(meta_list)
+        self.write_index(self.chunks, self.meatas, self.output_dir, name_postfix="all")
+    
+    def write_index(self, chunks:list,meatas:list, output_dir:str, name_postfix:str="all"):
+        """将处理后的数据写入索引文件和元数据文件"""
         # 写入索引文件
-        with open(self.index_file, 'w') as idx_f:
+        index_file = os.path.join(output_dir, f"chunks_{name_postfix}.txt")
+        with open(index_file, 'w') as idx_f:
             for chunk in chunks:
                 for item in chunk:
                     idx_f.write(f"{item[0]}\t{item[1]}\t{item[2]}\n")
         # 写入元数据文件
-        with open(self.meta_file, 'w') as meta_f:
+        meta_file = os.path.join(output_dir, f"meta_{name_postfix}.txt")
+        with open(meta_file, 'w') as meta_f:
             for meta in meatas:
                 meta_f.write(f"{meta[0]}\t{meta[1]}\t{meta[2]}\t{meta[3]}\n")
         
-        logger.info(f"Index file created at: {self.index_file} and {self.meta_file}")
+        logger.info(f"Index file created at: {index_file} and {meta_file}")
+
+    def split_train_val_test(self, dataset_name:str, train_ratio=0.8, val_ratio=0.1, test_ratio=0.1, shuffle=True):
+        """将数据集划分为训练集、验证集和测试集"""
+        output_dir = os.path.join(self.output_dir, dataset_name)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # split chunks into train, val, test
+        chunks = copy.deepcopy(self.chunks)
+        assert len(chunks) == len(self.meatas), "Chunks and metadatas must have the same length"
+        indexs = list(range(len(chunks)))
+        if shuffle:
+            random.shuffle(indexs)
+        
+        chunks_train, metas_train = [], []
+        chunks_val, metas_val = [], []
+        chunks_test, metas_test = [], []
+        for i, (indexs) in enumerate(indexs):
+            
+            if random.random() < train_ratio:
+                chunk = chunks[indexs]
+                meta = self.meatas[indexs]
+                if shuffle:
+                    random.shuffle(chunk)
+                chunks_train.append(chunk)
+                metas_train.append(meta)
+            elif random.random() > (train_ratio + val_ratio):
+                chunk = chunks[indexs]
+                meta = self.meatas[indexs]
+                if shuffle:
+                    random.shuffle(chunk)
+                chunks_val.append(chunk)
+                metas_val.append(meta)
+            else:
+                chunk = chunks[indexs]
+                meta = self.meatas[indexs]
+                if shuffle:
+                    random.shuffle(chunk)
+                chunks_test.append(chunk)
+                metas_test.append(meta)
+
+        # write train, val, test index files
+        self.write_index(chunks_train, metas_train, output_dir, name_postfix="train")
+        self.write_index(chunks_val, metas_val, output_dir, name_postfix="val")
+        self.write_index(chunks_test, metas_test, output_dir, name_postfix="test")
+        logger.info(f"Train, val, test index files created at: {output_dir}")
+        logger.info(f"Train: {len(chunks_train)}, Val: {len(chunks_val)}, Test: {len(chunks_test)}")                               
+            
+            
+
                 
 
 def main():
