@@ -1,6 +1,7 @@
 import argparse
 import glob
 import os
+import random
 from Bio import SeqIO
 import logging
 
@@ -59,35 +60,60 @@ class SequencePreprocessor:
         is_clean = not any(ex in record_id for ex in cls.EXCLUDE_KEYWORDS)
         return is_chr and is_clean
     
-    def _process_h5_file(self, h5_file, idx_f, meta_f):
+    def _process_h5_file(self, h5_file):
         """处理文本文件(.bin或.txt)"""
         if not os.path.exists(h5_file):
             logger.warning(f"h5 file does not exist: {h5_file}")
             return
         
         logger.info(f"Processing text file: {h5_file}")
+        chunk_list = []
+        meta_list = []
         with h5py.File(h5_file, 'r') as input_f:
             seq_len = input_f['seq'].shape[0]
-            num_chunks = seq_len // self.chunk_size
-            
-            # 记录索引
-            for i in range(num_chunks):
-                start = i * self.chunk_size
-                end = start + self.chunk_size
-                idx_f.write(f"{h5_file}\t{start}\t{end}\n")
-            
-            meta_f.write(f"{h5_file}\t{seq_len}\n")
+            if seq_len < self.min_seq_len:
+                logger.info(f"Sequence length {seq_len} of {h5_file} is too short, skipping.")
+            else:
+                num_chunks = seq_len // self.chunk_size
+                
+                # 记录索引
+                for i in range(num_chunks):
+                    start = i * self.chunk_size
+                    end = start + self.chunk_size
+                    chunk_list.append([h5_file, start, end])
+                
+                meta_list = [h5_file, seq_len, self.chunk_size, len(chunk_list)]
+        return chunk_list, meta_list
 
     
-    def process(self):
+    def process(self, chr_shuffle=True, species_shuffle=True):
         """执行预处理流程"""
         os.makedirs(self.output_dir, exist_ok=True)
-        
-        with open(self.index_file, 'w') as idx_f, open(self.meta_file, 'w') as meta_f:
-            meta_f.write(f"chunk_size\t{self.chunk_size}\n")
+        chunks = []
+        meatas = []
             
-            for chr_file in tqdm(self.chr_files, desc="Processing files", total=len(self.chr_files)):
-                self._process_h5_file(chr_file, idx_f, meta_f)
+        for chr_file in tqdm(self.chr_files, desc="Processing files", total=len(self.chr_files)):
+            chunk_list, meta_list = self._process_h5_file(chr_file)
+            if chunk_list:
+                if chr_shuffle:
+                    random.shuffle(chunk_list)
+                
+                chunks.append(chunk_list)
+                if meta_list:
+                    meatas.extend(meta_list)
+        if species_shuffle:
+            random.shuffle(chunks)
+
+        # 写入索引文件
+        with open(self.index_file, 'w') as idx_f:
+            for chunk in chunks:
+                for item in chunk:
+                    idx_f.write(f"{item[0]}\t{item[1]}\t{item[2]}\n")
+        # 写入元数据文件
+        with open(self.meta_file, 'w') as meta_f:
+            for meta in meatas:
+                meta_f.write(f"{meta[0]}\t{meta[1]}\t{meta[2]}\t{meta[3]}\n")
+        
         logger.info(f"Index file created at: {self.index_file} and {self.meta_file}")
                 
 
