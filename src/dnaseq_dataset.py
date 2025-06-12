@@ -10,6 +10,7 @@ import atexit
 from collections import OrderedDict
 import logging
 import h5py
+from tqdm import tqdm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -35,7 +36,6 @@ class DNAH5Dataset(Dataset):
         
         if shuffle:
             random.shuffle(self.chunks)
-            self.chunks = sorted(self.chunks, key=lambda x: (x[0]))  # Sort by chromosome name
         
         # Register cleanup function
         atexit.register(self.cleanup)
@@ -129,6 +129,7 @@ class DNAH5Dataset(Dataset):
                     pass
             
             self.file_cache.clear()
+            print("Cleaned up all memory mappings and file handles.")
     
     def __del__(self):
         self.cleanup()
@@ -161,10 +162,22 @@ if __name__ == "__main__":
     # Example usage
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_file', help='Path to the dataset file')
+    parser.add_argument('--batch_size', default=16, type=int, help='Batch size')
+    parser.add_argument('--num_workers', default=0, type=int, help='Number of workers')
+    parser.add_argument('--shuffle', action='store_true', help='Shuffle the dataset')
     
     args = parser.parse_args()
-    dataloader = get_dna_dataloader(args.dataset_file, batch_size=32, num_workers=0, shuffle=True)
-    
-    for batch in dataloader:
-        print(batch["input_seq"].shape, batch["anno"].shape if batch["anno"] is not None else "No annotations")
-        break  # Test the first batch only
+    logger.info(f"Arguments: {args}")
+    dataloader = get_dna_dataloader(
+        args.dataset_file, 
+        batch_size=args.batch_size, 
+        num_workers=args.num_workers, 
+        shuffle=args.shuffle
+        )
+
+    for i, batch in enumerate(tqdm(dataloader, desc="Loading batches", total=len(dataloader))):
+        print(i, batch["input_seq"].shape, batch["anno"].shape if batch["anno"] is not None else "No annotations", len(dataloader.dataset.file_cache.keys()))
+        if i > 2: 
+            break
+    del dataloader.dataset  # Explicitly delete dataset to release resources
+    print("Data loading complete.")
