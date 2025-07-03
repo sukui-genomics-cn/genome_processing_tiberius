@@ -77,11 +77,11 @@ class SequencePreprocessor:
                     logger.info(f"skip file: {sub_file_dir}")
         else:
             if sub_dir is not None:
-                logger.info(f"sub_dir: {sub_dir}, not support when recursive is False")
+                dest_path = os.path.join(dest_path, sub_dir)
             file_dirs += glob.glob(os.path.join(dest_path, name), recursive=recursive)
             logger.info(f"find files: {len(file_dirs)}")
 
-        return file_dirs
+        return file_dirs[:3]
 
     @classmethod
     def is_chr(cls, record_id):

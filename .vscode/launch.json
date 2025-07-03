@@ -89,7 +89,9 @@
             "program": "${workspaceFolder}/src/dnaseq_dataset.py",
             "args": [
                 "--dataset_file=/home/nvme01/sukui/01.data/T2T/t2t_chr_50004_h5/t2t_chunk_50004_h5/chunks_train.txt",
-                "--shuffle=True"
+                "--shuffle",
+                "--batch_size=256",
+                "--num_workers=32",
             ],
             "console": "integratedTerminal",
             "justMyCode": true,

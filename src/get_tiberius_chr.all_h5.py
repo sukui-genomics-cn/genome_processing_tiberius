@@ -1,19 +1,11 @@
-import sys
-import shutil
 import logging
 
 import numpy as np
-import pandas as pd
 import argparse
 import os
 import gzip
-from glob import glob
-from pathlib import Path
-from tqdm import tqdm
-from multiprocessing import Pool
 from Bio.Seq import Seq
 import pickle
-from scipy.sparse import csr_matrix, csc_matrix, coo_matrix
 
 import h5py
 
@@ -22,13 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class GetChunks:
-    def __init__(self, fasta_file='', pkl_file='', out_dir = "./", min_seq_len:int=1000000):
+    def __init__(self, fasta_file='', pkl_file='', out_dir = "./", data_name="chunk_chr.all_h5", min_seq_len:int=1000000):
         self.fasta = fasta_file
         self.pkl = pkl_file
         self.min_seq_len = min_seq_len  # Minimum sequence length to save
-        # self.chunksize = chunksize
-        # self.overlap = overlap
-        self.out_dir = os.path.join(out_dir, "chunk_chr.all_h5")
+        self.out_dir = os.path.join(out_dir, data_name)
 
         self.spec = self.pkl.split("/")[-3]
         basename = os.path.basename(self.pkl).split(".pkl")[-2].split("_")
@@ -38,18 +28,14 @@ class GetChunks:
         if not os.path.exists(self.out_dir):
             os.makedirs(self.out_dir)
 
-        if self.fasta:
+        if self.fasta and os.path.exists(self.fasta):
             self.read_fasta()
         else:
             print("-----Fasta file not found!-----")
-        if self.pkl:
+        if self.pkl and os.path.exists(self.pkl):
             self.read_pkl()
         else:
             print("-----Pickle file of one-hot labels not found!-----")
-#        basename = os.path.basename(self.fasta_file).split(".txt")[0].split("_")
-#        self.spec = "_".join(basename[0:2]) 
-#        self.chrom = "_".join(basename[2:4])        
-
 
     def read_fasta(self):
         if self.fasta.endswith(".txt.gz"):
@@ -68,7 +54,7 @@ class GetChunks:
 
     def read_pkl(self):
 
-        if self.pkl.endswith(".gz"):
+        if self.pkl.endswith(".pkl.gz"):
             file = gzip.open(self.pkl, "rb")
         elif self.pkl.endswith(".pkl"):
             file = open(self.pkl, "rb")
@@ -117,7 +103,7 @@ class GetChunks:
             hf.attrs['spec'] = self.spec
             hf.attrs['chrom'] = self.chrom
             hf.attrs['strand'] = self.strand
-        logger.info(f"{self.strand} of {self.fasta} has been cutted!")
+        logger.info(f"{self.strand} of {self.fasta} has been cutted! save in {self.out_dir}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -139,13 +125,8 @@ if __name__ == '__main__':
     else:
 #        cpus = 10
 #        p = Pool(cpus)
-        # chunks = GetChunks(args.fasta, args.pkl, args.out_dir, args.min_seq_len)
-        # chunks.save_h5()
+        chunks = GetChunks(args.fasta, args.pkl, args.out_dir, args.min_seq_len)
+        chunks.save_h5()
         pass
 #        p.close()
 #        p.join()
-
-
-
-
-

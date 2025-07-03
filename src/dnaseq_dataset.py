@@ -11,6 +11,7 @@ from collections import OrderedDict
 import logging
 import h5py
 from tqdm import tqdm
+from memory_profiler import profile
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -25,7 +26,7 @@ class DNAH5Dataset(Dataset):
         self.chunks = []
         self.file_handles = {}  # Mapping from file path to file descriptor
         self.lock = torch.multiprocessing.Lock()  # Used for multi-process synchronization
-        self.max_maps = max_maps
+        self.max_maps = 8
         self.mode = mode
         self.seq_key = seq_key
         self.anno_key = anno_key
@@ -50,7 +51,7 @@ class DNAH5Dataset(Dataset):
                     chunks.append([parts[0], int(parts[1]), int(parts[2])])
         logger.info(f"Loaded {len(chunks)} chunks from {chunk_file}")    
         return chunks
-
+    # @profile
     def _get_mmap(self, file_path, anno_path=None):
         """Get or create memory mapping (thread-safe)"""
         with self.lock:
@@ -63,13 +64,23 @@ class DNAH5Dataset(Dataset):
                 self.file_cache.move_to_end(file_path)  # Move to end to maintain order
 
             if len(self.file_cache) > self.max_maps:
-                print(f"Max maps reached, removing oldest mmap: {self.max_maps}")
+                # print(f"Max maps reached, removing oldest mmap: {self.max_maps}")
+                pass
 
             # Check mmap size
             if len(self.file_cache) > self.max_maps:
                 self._remove_oldest_mmap()
                 
-            return self.file_cache[file_path]
+        return self.file_cache[file_path]
+    
+    def _get_read_h5(self, file_path, anno_path=None):
+        """Get or create memory mapping (thread-safe)"""
+        # Open file in read mode and build mmap
+        # self.file_cache[file_path] = h5py.File(file_path, self.mode, driver='core' if self.mode == 'r' else None)
+        # self.file_cache.move_to_end(file_path)  # Move to end to maintain order
+
+                
+        return h5py.File(file_path, self.mode, driver='core' if self.mode == 'r' else None)
         
     def _remove_oldest_mmap(self):
         """Close the oldest mmap and remove it from the dictionary"""
@@ -82,8 +93,8 @@ class DNAH5Dataset(Dataset):
             oldest_mmap.close()
             del self.file_cache[oldest_path]
 
-        print(f"Released oldest memory mapping: {oldest_path}")
-        print(f"Current retained memory mappings: {self.file_cache.keys()}")
+        # print(f"Released oldest memory mapping: {oldest_path}")
+        # print(f"Current retained memory mappings: {self.file_cache.keys()}")
     
     def _encode_dna(self, sequence):
         """Convert DNA sequence to one-hot encoding"""
@@ -108,10 +119,11 @@ class DNAH5Dataset(Dataset):
         file_path, start, end = self.chunks[idx]
         
         try:
-            data = self._get_mmap(file_path)
-            seq = data[self.seq_key][start:end].tobytes().decode('ascii')
-            anno = data[self.anno_key][start:end] if self.anno_key in data else None
+            with h5py.File(file_path, self.mode, driver='core' if self.mode == 'r' else None) as data:
+                seq = data[self.seq_key][start:end].tobytes().decode('ascii')[:self.max_length]
+                anno = data[self.anno_key][start:end][:self.max_length] if self.anno_key in data else None
             seq = self._encode_dna(seq)
+            data.close()
             
             return {"input_seq": seq, "anno": anno}
         
@@ -177,7 +189,7 @@ if __name__ == "__main__":
 
     for i, batch in enumerate(tqdm(dataloader, desc="Loading batches", total=len(dataloader))):
         print(i, batch["input_seq"].shape, batch["anno"].shape if batch["anno"] is not None else "No annotations", len(dataloader.dataset.file_cache.keys()))
-        if i > 2: 
+        if i > 20: 
             break
     del dataloader.dataset  # Explicitly delete dataset to release resources
     print("Data loading complete.")
